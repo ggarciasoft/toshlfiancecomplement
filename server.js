@@ -20,7 +20,6 @@ var sockets = [];
 function getHeaders(clientId) {
    
     return {
-        'Postman-Token': '5f70fdce-4d3c-5c7a-1f5b-e917a5eb55a7',
         'Cache-Control': 'no-cache',
         'Authorization': getBasicAuthorization(clientId)
     };
