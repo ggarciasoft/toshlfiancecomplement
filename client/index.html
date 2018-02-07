@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" ng-app="complementApp">
+
+<head>
+  <title>Complement</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+    crossorigin="anonymous">
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.7/angular.min.js"></script>
+  </style>
+  <script>
+    angular.module('complementApp', [])
+      .controller('ComplementController', function ($http) {
+        var data = this;
+        data.accounts = [];
+        data.clientId = "";
+        data.month = new Date().toLocaleString("en-us", { month: "long" });
+        data.search = function () {
+          $http.get(`/accounts?clientId=${data.clientId}`).then(function (response) {
+            data.accounts = JSON.parse(response.data);
+          });
+        }
+      });
+  </script>
+</head>
+
+<body>
+  <div class="container" ng-controller="ComplementController as complement">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand mr-auto" href="#">Complement</a>
+      <form class="form-inline my-2 my-lg-0" ng-submit="complement.search()">
+        <input class="form-control mr-sm-2" type="search" ng-model="complement.clientId" placeholder="client Id" aria-label="Search">
+        <button class="btn btn-outline-success my-2 my-sm-0" type="submit" ng-disabled="!complement.clientId">Search</button>
+      </form>
+    </nav>
+    <fieldset>
+      <legend>Accounts:</legend>
+      <section>
+        <table class="table">
+          <thead>
+            <th class="col">Account</th>
+            <th class="col">Amount</th>
+          </thead>
+          <tbody>
+            <tr ng-repeat="account in complement.accounts">
+              <td>{{account.name}}</td>
+              <td style="text-align: right">{{account.balance | currency}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </fieldset>
+  </div>
+</body>
+
+</html>
