@@ -3,9 +3,9 @@
 //
 // A simple chat server using Socket.IO, Express, and Async.
 //
-
-if (process.argv == 2) {
+if (process.argv.length == 2) {
     console.error('client id must be provided');
+    return;
 }
 
 var clientId = process.argv[2];
