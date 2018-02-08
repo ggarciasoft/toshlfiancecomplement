@@ -10,41 +10,141 @@
   </style>
   <script>
     angular.module('complementApp', [])
-      .controller('ComplementController', function ($http) {
-        var data = this;
-        data.accounts = [];
-        data.clientId = "";
-        data.month = new Date().toLocaleString("en-us", { month: "long" });
-        data.search = function () {
-          $http.get(`/accounts?clientId=${data.clientId}`).then(function (response) {
-            data.accounts = JSON.parse(response.data);
-          });
+      .controller('ComplementController', function ($http, $q) {
+        $http.defaults.cache = true;
+        var controller = this;
+        controller.accounts = [];
+        controller.budgets = [];
+        controller.otherInformations = [];
+        controller.totalAccountsAmount = 0;
+
+        controller.loadData = function () {
+          var getAccounts = $http.get('/accounts');
+          var getBudgets = $http.get('/budgets');
+          $q.all([getAccounts, getBudgets])
+            .then(function (values) {
+              loadAccounts(values[0].data);
+              loadBudgets(values[1].data);
+              loadEntries();
+            });
         }
+
+        function loadAccounts(data) {
+          controller.accounts = JSON.parse(data);
+          for (var account of controller.accounts) {
+            controller.totalAccountsAmount += account.balance;
+          }
+        }
+
+        function loadBudgets(data) {
+          controller.budgets = JSON.parse(data);
+        }
+
+        function loadEntries() {
+          var firstBudget = controller.budgets[0];
+          controller.periodStart = firstBudget.from;
+          controller.periodEnd = firstBudget.to;
+          $http.get(`/entriessum?from=${firstBudget.from}&to=${firstBudget.to}`)
+            .then(function (response) {
+              entries = JSON.parse(response.data);
+              var totalExpenses = 0;
+              var totalExpensesFromNow = 0;
+              var totalIncomes = 0;
+              var today = new Date();
+              for (var entry of entries) {
+                totalExpenses += entry.expenses.sum;
+                totalIncomes += entry.incomes.sum;
+                if (new Date(entry.day) >= today)
+                  totalExpensesFromNow += entry.expenses.sum;
+              }
+
+              for(var budget of controller.budgets){
+                var budgetLeftToSpend = budget.limit - budget.amount;
+                totalExpenses += budgetLeftToSpend;
+                totalExpensesFromNow += budgetLeftToSpend;
+              }
+
+              var leftEndOfPeriod = controller.totalAccountsAmount - totalExpensesFromNow;
+
+              controller.otherInformations.push({ description: "Total Expenses", amount: totalExpenses });
+              controller.otherInformations.push({ description: "Left Total Expenses", amount: totalExpensesFromNow });
+              controller.otherInformations.push({ description: "Total Incomes", amount: totalIncomes });
+              controller.otherInformations.push({ description: "Left End of Period", amount: leftEndOfPeriod });
+            });
+        }
+
+        controller.loadData();
       });
   </script>
 </head>
 
 <body>
   <div class="container" ng-controller="ComplementController as complement">
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
       <a class="navbar-brand mr-auto" href="#">Complement</a>
       <form class="form-inline my-2 my-lg-0" ng-submit="complement.search()">
-        <input class="form-control mr-sm-2" type="search" ng-model="complement.clientId" placeholder="client Id" aria-label="Search">
-        <button class="btn btn-outline-success my-2 my-sm-0" type="submit" ng-disabled="!complement.clientId">Search</button>
+        <input class="form-control mr-sm-2" type="text" ng-model="complement.periodStart" disabled>
+        <input class="form-control mr-sm-2" type="text" ng-model="complement.periodEnd" disabled>
       </form>
     </nav>
     <fieldset>
-      <legend>Accounts:</legend>
+      <legend>Accounts</legend>
       <section>
         <table class="table">
           <thead>
-            <th class="col">Account</th>
-            <th class="col">Amount</th>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Amount</th>
+            </tr>
           </thead>
           <tbody>
             <tr ng-repeat="account in complement.accounts">
-              <td>{{account.name}}</td>
-              <td style="text-align: right">{{account.balance | currency}}</td>
+              <td scope="row">{{account.name}}</td>
+              <td>{{account.balance | currency}}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              <th>{{complement.totalAccountsAmount | currency}}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+    </fieldset>
+    <fieldset>
+      <legend>Budgets</legend>
+      <section>
+        <table class="table">
+          <thead>
+            <th scope="col">Name</th>
+            <th scope="col">Limit</th>
+            <th scope="col">Current Amount</th>
+          </thead>
+          <tbody>
+            <tr ng-repeat="info in complement.budgets">
+              <td scope="row">{{info.name}}</td>
+              <td>{{info.limit | currency}}</td>
+              <td>{{info.amount | currency}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </fieldset>
+    <fieldset>
+      <legend>Other Information</legend>
+      <section>
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Information</th>
+              <th scope="col">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="info in complement.otherInformations">
+              <td scope="row">{{info.description}}</td>
+              <td>{{info.amount | currency}}</td>
             </tr>
           </tbody>
         </table>
